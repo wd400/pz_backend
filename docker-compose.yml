@@ -1,0 +1,66 @@
+version: '3'
+
+volumes:
+  db:
+    driver: local 
+
+
+
+services:
+
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    container_name: duckdns
+    environment:
+      - TZ=Europe/Paris
+      - SUBDOMAINS=promptzoo.duckdns.org
+      - TOKEN=1028ee5e-bdda-4ea3-84e5-0d83fccdcf5a
+    restart: unless-stopped
+
+  web:
+    build: .
+    env_file:
+      - .env
+    command: bash -c "
+      uvicorn greens.main:app
+      --host 0.0.0.0 --port 8989
+      --lifespan=on --use-colors --loop uvloop --http httptools
+      --log-config=log-conf.yaml
+      --reload
+      "
+    volumes:
+      - .:/app
+    ports:
+      - "8989:8989"
+    depends_on:
+      - mongodb
+   # network_mode: "host"
+
+  mongodb:
+    build:
+      context: ./mongo/
+  #  network_mode: "host"
+    volumes:
+      - db:/data/db
+   #   - ./security.keyFile:/tmp/security.keyFile
+    #  - ./init-mongo.js:/docker-entrypoint-initdb.d/init.js:ro
+    restart:
+      on-failure
+    env_file:
+      - .env
+    healthcheck:
+      test: |
+        test $$(mongosh --quiet -u $${MONGO_INITDB_ROOT_USERNAME}  -p $${MONGO_INITDB_ROOT_PASSWORD} --eval "try { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: '127.0.0.1' }] }).ok } catch (_) { rs.status().ok }") -eq 1
+   #   test: test $$(echo "rs.initiate().ok || rs.status().ok" | mongo -u $${MONGO_INITDB_ROOT_USERNAME} -p $${MONGO_INITDB_ROOT_PASSWORD} --quiet) -eq 1
+      interval: 10s
+      start_period: 30s
+ 
+    ports:
+      - "27017:27017"
+    environment:
+      - "MONGO_INITDB_DATABASE=${MONGO_DB}"
+      - "MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}"
+      - "MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASS}"
+  #  command: "--logpath /dev/null  --replSet=rs0  --keyFile /keyfile "
+
+

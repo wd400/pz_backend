@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"prompt_id":{"$numberInt":"1"},"user":{"$numberInt":"1"}},"name":"prompt_id_1_user_1","sparse":false}],"uuid":"1435f28410b24502895ec3fca145f168","collectionName":"votes","type":"collection"}

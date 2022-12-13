@@ -89,7 +89,7 @@ async def list_tags(offset):
     return l
 
 async def get_prompt(prompt_id):
-    l= await greens.app.state.mongo_client['DB']['prompts'].find_one({'_id':prompt_id})
+    l= await greens.app.state.mongo_client['DB']['prompts'].find_one({'_id':ObjectId(prompt_id)})
     if l:
         del l['_id']
     return l
@@ -103,24 +103,31 @@ async def get_tag_prompts(tag,tag_prompt):
     convert_objectid(l)
     return l
 
-async def vote(prompt_id,vote,user_id):
+async def fn_vote(prompt_id,vote,user_id):
+    print("new_vote",vote)
     async with await greens.app.state.mongo_client.start_session() as s:
         # Note, start_transaction doesn't require "await".
         async with s.start_transaction():
             prompts = greens.app.state.mongo_client['DB']['prompts']
+            print("prompt_id",prompt_id)
+            prompt_id=ObjectId(prompt_id)
             if await prompts.find_one({'_id':prompt_id}, session=s):
                 votes = greens.app.state.mongo_client['DB']['votes']
-                vote= await votes.find_one({'prompt_id':prompt_id,'user':user_id}, session=s)
-                print("VOTE",vote)
-                if vote:
-                    previous_vote=vote['value']
+                previous_vote= await votes.find_one({'prompt_id':prompt_id,'user':user_id}, session=s)
+                print("previous_vote",previous_vote)
+                if previous_vote:
+                    previous_vote=previous_vote['value']
                     if previous_vote==vote:
                         raise HTTPException(status_code=403, detail=f"You already voted") 
                     else:
-                        votes.update_one({'prompt_id':prompt_id,'user':user_id},{'$set': {'value': previous_vote}}, session=s)
+                        await votes.update_one({'prompt_id':prompt_id,'user':user_id},{'$set': {'value': vote}}, session=s)
                         update=vote-previous_vote
                 else:
                     await votes.insert_one({'prompt_id':prompt_id,'user':user_id,'value':vote}, session=s)
                     update=vote
-                await prompts.update_one({'_id':prompt_id},{'$incr':{"score":update}}, session=s)
+                print("update",update)
+                await prompts.update_one({'_id':prompt_id},{'$inc':{"score":update}}, session=s)
+            else:
+                raise HTTPException(status_code=404, detail=f"Prompt not found") 
+
     return update

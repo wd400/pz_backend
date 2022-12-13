@@ -11,7 +11,7 @@ import hashlib
 
 from greens import config
 from greens.routers import router as v1
-from greens.services.repository import get_mongo_meta,add_prompt,search,get_tag_prompts,list_tags,vote,list_prompts,get_prompt
+from greens.services.repository import get_mongo_meta,add_prompt,search,get_tag_prompts,list_tags,fn_vote,list_prompts,get_prompt
 from greens.utils import get_logger, init_mongo
 from pydantic import BaseModel
 from typing import List
@@ -20,7 +20,7 @@ from fastapi import FastAPI, HTTPException
 
 global_settings = config.get_settings()
 
-SALT="ZVOBROFUBZFPCJN"
+SALT="ZVOBROFUBZFPCJNXD"
 
 if global_settings.environment == "local":
     get_logger("uvicorn")
@@ -157,7 +157,7 @@ def get_token(oauth_token: OauthToken, Authorize: AuthJWT = Depends()):
     id=id['sub']
 
     # subject identifier for who this token is for example id or username from database
-    access_token = Authorize.create_access_token(subject=hashlib.sha512((id+ SALT).encode('utf-8')).hexdigest())
+    access_token = Authorize.create_access_token(subject=hashlib.sha256((id+ SALT).encode('utf-8')).hexdigest())
     return {"access_token": access_token}
 
 
@@ -174,21 +174,21 @@ async def list_all(tag_query: TagQuery ):
     return await list_prompts(tag_query)
 
 
-@app.get("/prompt/<:promptid>")
+@app.get("/prompt/{promptid}")
 async def list_all(promptid:str ):
     return await get_prompt(promptid)
 
 
 
-@app.post("/vote/<:promptid>")
+@app.post("/vote/{promptid}")
 async def vote_endpoint(promptid:str,vote_value:VoteValue,Authorize: AuthJWT = Depends()):
-    if vote.value not in {-1,1}:
+    if vote_value.value not in {-1,1}:
         raise HTTPException(status_code=403, detail=f"Invalid vote value") 
         
     Authorize.jwt_required()
     current_user = Authorize.get_jwt_subject()
 
-    update=await vote(promptid,vote_value.value,current_user)
-
+    update=await fn_vote(promptid,vote_value.value,current_user)
+    print("update",update)
     return {"update":update}
 

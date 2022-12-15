@@ -11,6 +11,7 @@ import hashlib
 
 from greens import config
 from greens.routers import router as v1
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from greens.services.repository import get_mongo_meta,add_prompt,search,get_tag_prompts,list_tags,fn_vote,list_prompts,get_prompt
 from greens.utils import get_logger, init_mongo
 from pydantic import BaseModel
@@ -25,8 +26,9 @@ SALT="ZVOBROFUBZFPCJNXD"
 if global_settings.environment == "local":
     get_logger("uvicorn")
 
-app = FastAPI()
+app = FastAPI(authjwt_access_token_expires=60*60*24*60)
 
+app.add_middleware(HTTPSRedirectMiddleware)
 
 origins = [
 
@@ -40,7 +42,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 class Settings(BaseModel):
     authjwt_secret_key: str = "PEDXKEPJOHOCIFUNCPDKJ"
@@ -77,9 +78,9 @@ async def shutdown_event():
     app.state.logger.info("Parking tractors in garage...")
 
 
-@app.get("/health-check")
-async def health_check():
-    return await get_mongo_meta()
+#@app.get("/health-check")
+#async def health_check():
+#    return await get_mongo_meta()
 
 
 class AddPrompt(BaseModel):
@@ -88,6 +89,7 @@ class AddPrompt(BaseModel):
     source: str
     model: str
     output:str
+    description:str
 
 def checklength(data,type_name,max_len):
     if len(data)>max_len:
@@ -96,10 +98,11 @@ def checklength(data,type_name,max_len):
 
 @app.post("/add")
 async def add_endpoint(Prompt:AddPrompt):
-    checklength(Prompt.prompt,"prompt",500)
+    checklength(Prompt.prompt,"prompt",10_000)
     checklength(Prompt.tags,"tags",10)
     checklength(Prompt.source,"source",500)
     checklength(Prompt.model,"model",50)
+    checklength(Prompt.model,"description",300)
     checklength(Prompt.output,"output",20_000)
     for tag in Prompt.tags:
         checklength(tag,"tag",20)

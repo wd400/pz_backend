@@ -83,7 +83,7 @@ async def list_prompts(req):
 async def list_tags(offset):
     collection = greens.app.state.mongo_client['DB']['tags']
     #limit(30)
-    l= await collection.find().sort('score', -1).skip(offset).to_list(30)
+    l= await collection.find().sort('score', -1).skip(offset).to_list(100)
     convert_objectid(l)
     print(l)
     return l

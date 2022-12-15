@@ -3,10 +3,20 @@ version: '3'
 volumes:
   db:
     driver: local 
+  certbot_conf:
 
 
 
 services:
+  certbot:
+    build: ./certbot
+    volumes:
+      - certbot_conf:/etc/letsencrypt/
+    ports:
+      - "80:80"
+    restart: always
+    depends_on:
+      - duckdns
 
   duckdns:
     image: lscr.io/linuxserver/duckdns:latest
@@ -18,22 +28,35 @@ services:
     restart: unless-stopped
 
   web:
-    build: .
+    build: ./web
     env_file:
       - .env
-    command: bash -c "
-      uvicorn greens.main:app
-      --host 0.0.0.0 --port 8989
-      --lifespan=on --use-colors --loop uvloop --http httptools
-      --log-config=log-conf.yaml
-      --reload
-      "
+    restart:
+      on-failure
     volumes:
-      - .:/app
+      - ./web:/app
+      - certbot_conf:/etc/letsencrypt/
     ports:
-      - "8989:8989"
+#      - "8989:8989"
+      - "443:443"
+ #     - "8000:8000"
     depends_on:
       - mongodb
+      - certbot
+    command: bash -c "
+      uvicorn greens.main:app
+      --host 0.0.0.0 --port 443
+      --lifespan=on --use-colors --loop uvloop 
+      --log-config=log-conf.yaml
+      --ssl-keyfile=/etc/letsencrypt/live/api.promptzoo.com/privkey.pem
+      --ssl-certfile=/etc/letsencrypt/live/api.promptzoo.com/fullchain.pem
+      --reload
+      "
+      # --log-level trace
+    # --http httptools  --ssl-keyfile=/etc/letsencrypt/live/api.promptzoo.com/privkey.pem
+    #  --ssl-certfile=/etc/letsencrypt/live/api.promptzoo.com/fullchain.pem
+      #   
+
    # network_mode: "host"
 
   mongodb:

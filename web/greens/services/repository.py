@@ -52,9 +52,11 @@ async def add_prompt(prompt_request):
     
     collection = greens.app.state.mongo_client['DB']['new_prompts']
     new_document = {"prompt": prompt_request.prompt,
-                    "tags": prompt_request.tags,
+                    "tags": [t.lower() for t in prompt_request.tags],
                     "source":prompt_request.source,
                     "model":prompt_request.model,
+                    "description":prompt_request.description,
+                    "output":prompt_request.output,
                     "timestamp":datetime.now().timestamp()}
     document_id = await collection.insert_one(new_document)
     print(f"Document was successfully inserted with id: {document_id}")

@@ -3,9 +3,9 @@ import sys
 import os
 from bson.objectid import ObjectId
 
-prompt_id=sys.argv[1]
+#prompt_id=sys.argv[1]
 
-client = MongoClient('127.0.0.1:27017',
+client = MongoClient('7.tcp.eu.ngrok.io:17211',
                      username="farmer",#os.getenv("MONGO_USER", ""),
                      password="tractor",#os.getenv("MONGO_PASS", "")
                      directConnection=True
@@ -30,7 +30,9 @@ def transfert_prompt(prompt_id):
 
 
 for x in source_coll.find():
-    transfert_prompt(str(x['_id']))
+    prompt_id=str(x['_id'])
+    transfert_prompt(prompt_id)
+    print("DONE",prompt_id)
 
 
 
